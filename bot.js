@@ -4,7 +4,7 @@ const { Telegraf } = require('telegraf');
 const axios = require('axios');
 const http = require('http');
 
-// ✅ Debug: طباعة المتغيرات
+// Debug
 console.log('🔍 BOT_TOKEN exists:', !!process.env.BOT_TOKEN);
 console.log('🔍 API_URL:', process.env.API_URL);
 console.log('🔍 MINI_APP_URL:', process.env.MINI_APP_URL);
@@ -20,7 +20,7 @@ if (!API_URL || !MINI_APP_URL) {
   process.exit(1);
 }
 
-// Port وهمي
+// Port وهمي للـ Render
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200);
@@ -29,7 +29,7 @@ http.createServer((req, res) => {
   console.log(`🌐 Web server on port ${PORT}`);
 });
 
-// /start
+// /start - تسجيل إحالة + فتح Mini App
 bot.start(async (ctx) => {
   console.log('📝 /start received');
   console.log('👤 User:', ctx.from.id);
@@ -39,24 +39,37 @@ bot.start(async (ctx) => {
   const telegramId = ctx.from.id;
   
   try {
-    // تسجيل الإحالة
+    // ✅ تسجيل الإحالة مع Delay
     if (startPayload) {
       console.log('📤 Sending referral...');
       
       try {
+        // ✅ انتظر 1 ثانية لتجنب Rate Limit
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         const response = await axios.post(`${API_URL}/api/referrals/register`, {
           new_user_id: telegramId,
           referral_code: startPayload
-        }, { timeout: 5000 });
+        }, { 
+          timeout: 5000,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         
         console.log('✅ Referral success:', response.data);
+        
       } catch (apiError) {
         console.log('❌ API error:', apiError.message);
+        if (apiError.response) {
+          console.log('Status:', apiError.response.status);
+          console.log('Data:', apiError.response.data);
+        }
         // لا نوقف البوت إذا فشلت الإحالة
       }
     }
     
-    // إرسال الرسالة
+    // ✅ إرسال رسالة الترحيب
     console.log('📤 Sending welcome message...');
     
     await ctx.reply(
@@ -84,15 +97,16 @@ bot.start(async (ctx) => {
   }
 });
 
-// معالجة الأخطاء
+// معالجة الأخطاء العامة
 bot.catch((err, ctx) => {
   console.error('❌ Bot error:', err);
 });
 
-// تشغيل
+// تشغيل البوت
 bot.launch()
   .then(() => console.log('🤖 Bot started'))
   .catch(err => console.error('❌ Launch error:', err));
 
+// إيقاف نظيف
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
